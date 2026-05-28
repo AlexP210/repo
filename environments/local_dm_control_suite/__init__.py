@@ -43,6 +43,11 @@ from local_dm_control_suite import reacher
 from local_dm_control_suite import stacker
 from local_dm_control_suite import swimmer
 from local_dm_control_suite import walker
+from tdmpc2.envs.tasks import cheetah as tdmpc2_cheetah
+from dm_control.suite import cheetah as _dm_cheetah
+for _task_name, _task_fn in _dm_cheetah.SUITE.tagged('custom').items():
+    if _task_name not in cheetah.SUITE:
+        cheetah.SUITE.add('custom')(_task_fn)
 
 # Find all domains imported.
 _DOMAINS = {name: module for name, module in locals().items()

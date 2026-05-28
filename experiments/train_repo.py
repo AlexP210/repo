@@ -8,14 +8,14 @@ from environments import make_env, make_multitask_env
 def get_config():
     config = AttrDict()
     config.algo = "repo"
-    config.env_id = "dmc_distracted-walker-walk"
+    config.env_id = "dmc-cheetah-jump"
     config.expr_name = "default"
     config.seed = 0
     config.use_gpu = True
     config.gpu_id = 0
 
     # Dreamer
-    config.pixel_obs = True
+    config.pixel_obs = False
     config.num_steps = 500000
     config.replay_size = 500000
     config.prefill = 5000
