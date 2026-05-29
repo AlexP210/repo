@@ -13,8 +13,8 @@ import wandb
 sys.path.append(".")
 os.environ["WANDB_START_METHOD"] = "thread"
 
-from common.logger import configure_logger
-from common.utils import set_gpu_mode
+from repo.common.logger import configure_logger
+from repo.common.utils import set_gpu_mode
 
 
 class AttrDict(dict):

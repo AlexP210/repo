@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from .mlps import GaussianMLP, EnsembleGaussianMLP
 from .utils import MomentumScaler
-from common.utils import to_torch, to_np
+from repo.common.utils import to_torch, to_np
 
 
 class TransitionModel(nn.Module):

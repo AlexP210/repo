@@ -16,7 +16,7 @@ def get_config():
 
     # Dreamer
     config.pixel_obs = False
-    config.num_steps = 500000
+    config.num_steps = 1_000_000
     config.replay_size = 500000
     config.prefill = 5000
     config.train_every = 500

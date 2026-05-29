@@ -7,8 +7,8 @@ from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 from torch.optim import Adam
 
-from common.logger import Video
-from common.utils import to_torch, to_np, preprocess, postprocess, FreezeParameters
+from repo.common.logger import Video
+from repo.common.utils import to_torch, to_np, preprocess, postprocess, FreezeParameters
 from .dreamer import Dreamer
 from .models.decoder import TIAObservationModel, ObservationModel, RewardModel
 from .models.rssm import TransitionModel

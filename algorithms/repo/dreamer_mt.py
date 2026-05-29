@@ -6,9 +6,9 @@ from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 from torch.optim import Adam
 
-from common.buffers import MultitaskSequenceReplayBuffer
-from common.logger import Video
-from common.utils import (
+from repo.common.buffers import MultitaskSequenceReplayBuffer
+from repo.common.logger import Video
+from repo.common.utils import (
     to_torch,
     to_np,
     FreezeParameters,

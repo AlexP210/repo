@@ -8,9 +8,9 @@ from torch.distributions import Normal, Independent
 from torch.distributions.kl import kl_divergence
 from torch.optim import Adam
 
-from common.buffers import SequenceReplayBuffer
-from common.logger import Video
-from common.utils import (
+from repo.common.buffers import SequenceReplayBuffer
+from repo.common.logger import Video
+from repo.common.utils import (
     get_device,
     to_torch,
     to_np,
@@ -489,10 +489,13 @@ class Dreamer:
             self.logger.record("test/video", video, exclude="stdout")
         self.toggle_train(True)
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, filepath=None):
         # Save checkpoint
         params = self.get_param_dict()
-        torch.save(params, os.path.join(self.logger.dir, f"models.pt"))
+        if filepath is None:
+            torch.save(params, os.path.join(self.logger.dir, f"models.pt"))
+        else:
+            torch.save(params, filepath)
 
         # Save buffer
         if self.c.save_buffer:
@@ -519,23 +522,28 @@ class Dreamer:
             params["inv_dynamics_optimizer"] = self.inv_dynamics_optimizer.state_dict()
         return params
 
-    def load_checkpoint(self, ckpt_dir=None):
-        if ckpt_dir == None:
-            ckpt_dir = self.logger.dir
+    def load_checkpoint(self, ckpt_dir=None, model_path=None):
+        if model_path is None:
+            if ckpt_dir == None:
+                ckpt_dir = self.logger.dir
 
-        # Load buffer
-        buffer_path = os.path.join(ckpt_dir, f"buffer.npz")
-        if os.path.exists(buffer_path):
-            self.buffer.load(buffer_path)
-            print(f"Loaded buffer from {buffer_path}")
-        elif self.c.load_offline:
-            # Only load offline if no buffer found
-            # This is to prevent loading offline data twice
-            # when resuming training from checkpoint
-            self.load_offline_data()
+            # Load buffer
+            buffer_path = os.path.join(ckpt_dir, f"buffer.npz")
+            if os.path.exists(buffer_path):
+                self.buffer.load(buffer_path)
+                print(f"Loaded buffer from {buffer_path}")
+            elif self.c.load_offline:
+                # Only load offline if no buffer found
+                # This is to prevent loading offline data twice
+                # when resuming training from checkpoint
+                self.load_offline_data()
 
-        # Load models from the latest checkpoint
-        params_path = os.path.join(ckpt_dir, f"models.pt")
+            # Load models from the latest checkpoint
+            params_path = os.path.join(ckpt_dir, f"models.pt")
+            
+        else:
+            params_path = model_path
+
         if os.path.exists(params_path):
             params = torch.load(params_path)
             self.load_param_dict(params)

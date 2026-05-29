@@ -187,7 +187,7 @@ class RewardModel(nn.Module):
         self.fc4 = nn.Linear(hidden_size, 1)
 
     def forward(self, belief, state):
-        x = torch.cat([belief, state], dim=1)
+        x = torch.cat([belief, state], dim=-1)
         hidden = self.act_fn(self.fc1(x))
         hidden = self.act_fn(self.fc2(hidden))
         hidden = self.act_fn(self.fc3(hidden))

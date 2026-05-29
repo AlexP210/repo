@@ -10,15 +10,15 @@ from torch.distributions import Normal, Independent
 from torch.distributions.kl import kl_divergence
 from torch.optim import Adam
 
-from common.buffers import SequenceReplayBuffer
-from common.utils import (
+from repo.common.buffers import SequenceReplayBuffer
+from repo.common.utils import (
     to_torch,
     to_np,
     FreezeParameters,
     preprocess,
 )
-from common.models.gans import VDBDiscriminator
-from common.models.mlps import MLP
+from repo.common.models.gans import VDBDiscriminator
+from repo.common.models.mlps import MLP
 from .models.utils import bottle
 from .repo import RePo
 

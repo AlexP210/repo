@@ -5,9 +5,9 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 
-from common.buffers import ReplayBuffer
-from common.logger import Video
-from common.utils import get_device, soft_update, to_torch, to_np
+from repo.common.buffers import ReplayBuffer
+from repo.common.logger import Video
+from repo.common.utils import get_device, soft_update, to_torch, to_np
 
 from .models.actor_critic import Actor, Critic
 from .models.dynamics import make_transition_model, StateRewardModel
