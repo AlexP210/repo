@@ -25,9 +25,9 @@ def get_config():
     config.checkpoint_every = 25000
     config.log_every = 500
     config.embedding_size = 1024
-    config.hidden_size = 200
-    config.belief_size = 200
-    config.state_size = 30
+    config.hidden_size = 512
+    config.belief_size = 445
+    config.state_size = 67
     config.dense_activation_function = "elu"
     config.cnn_activation_function = "relu"
     config.batch_size = 50
