@@ -9,7 +9,7 @@ def get_config():
     config = AttrDict()
     config.algo = "repo"
     config.env_id = "dmc-cheetah-jump"
-    config.expr_name = "default"
+    config.expr_name = "offline-expert-with-eval"
     config.seed = 0
     config.use_gpu = True
     config.gpu_id = 0
@@ -45,9 +45,11 @@ def get_config():
     config.grad_clip_norm = 100.0
     config.load_checkpoint = False
     config.load_offline = False
-    config.offline_dir = "data"
+    config.offline_dir = "/data/AlexPleava/TDMPC2/datasets/mt30"
     config.offline_truncate_size = 1000000
     config.save_buffer = False
+    # Our offline training additions
+    config.train_offline = True
 
     # RePo
     config.target_kl = 3.0
@@ -109,4 +111,7 @@ if __name__ == "__main__":
         algo = MultitaskRePo(config, env, eval_env, logger)
     else:
         raise NotImplementedError("Unsupported algorithm")
-    algo.train()
+    if not config.train_offline:
+        algo.train()
+    else:
+        algo.train_offline()

@@ -45,6 +45,12 @@ class Dreamer:
             env.action_space.shape,
             obs_type=np.uint8 if config.pixel_obs else np.float32,
         )
+        self.eval_buffer = SequenceReplayBuffer(
+            config.replay_size,
+            env.observation_space.shape,
+            env.action_space.shape,
+            obs_type=np.uint8 if config.pixel_obs else np.float32,
+        )
         self.free_nats = torch.full((1,), config.free_nats).to(self.device)
 
     def build_models(self, config, env):
@@ -300,6 +306,73 @@ class Dreamer:
         if self.c.inv_dynamics:
             self.train_inv_dynamics(beliefs, posterior_states, actions, nonterms)
         return beliefs.detach(), posterior_states.detach()
+    
+    def eval_train_dynamics(self, obs, actions, rewards, nonterms):
+        """
+        Copy of train_dynamics but configured for evaluation (i.e. no gradient stepping, logs to eval group)
+        """
+        init_belief = torch.zeros(self.c.batch_size, self.c.belief_size).to(self.device)
+        init_state = torch.zeros(self.c.batch_size, self.c.state_size).to(self.device)
+        embeds = bottle(self.encoder, (obs,))
+        (
+            beliefs,
+            prior_states,
+            prior_means,
+            prior_std_devs,
+            posterior_states,
+            posterior_means,
+            posterior_std_devs,
+        ) = self.transition_model.observe(
+            init_belief,
+            init_state,
+            actions[:-1],
+            embeds[1:],
+            nonterms[:-1],
+        )
+
+        # Reconstruction loss
+        obs_dist = Normal(bottle(self.obs_model, (beliefs, posterior_states)), 1)
+        obs_loss = (
+            -obs_dist.log_prob(obs[1:])
+            .sum((2, 3, 4) if self.c.pixel_obs else 2)
+            .mean((0, 1))
+        )
+
+        # Reward loss
+        # Since we predict rewards from next states, we need to shift reward
+        # by one and account for terminal states
+        rewards_tgt = rewards[:-1].squeeze(-1)
+        mask = nonterms[:-1].squeeze(-1)
+        reward_dist = Normal(bottle(self.reward_model, (beliefs, posterior_states)), 1)
+        reward_loss = (-reward_dist.log_prob(rewards_tgt) * mask).mean((0, 1))
+
+        # KL loss
+        kl_div = kl_divergence(
+            Normal(posterior_means, posterior_std_devs),
+            Normal(prior_means, prior_std_devs),
+        ).sum(2)
+        kl_loss = torch.max(kl_div, self.free_nats).mean((0, 1))
+
+        # Update model
+        model_loss = obs_loss + reward_loss + kl_loss
+        # self.model_optimizer.zero_grad()
+        # model_loss.backward()
+        # nn.utils.clip_grad_norm_(self.model_params, self.c.grad_clip_norm)
+        # self.model_optimizer.step()
+
+        # Logging
+        self.logger.record("eval/obs_loss", obs_loss.item())
+        self.logger.record("eval/reward_loss", reward_loss.item())
+        self.logger.record("eval/kl_loss", kl_loss.item())
+        self.logger.record("eval/model_loss", model_loss.item())
+
+        # Update disagreement model and inverse dynamics
+        # if self.c.disag_model:
+        #     self.train_disag(beliefs, posterior_states, actions, nonterms)
+        # if self.c.inv_dynamics:
+        #     self.train_inv_dynamics(beliefs, posterior_states, actions, nonterms)
+        return beliefs.detach(), posterior_states.detach()
+
 
     def train_actor_critic(self, beliefs, posterior_states):
         # Train actor
@@ -380,6 +453,88 @@ class Dreamer:
         if self.c.disag_model and self.c.disag_coef > 0:
             self.logger.record("train/disagreement", disag.mean().item())
 
+    def eval_train_actor_critic(self, beliefs, posterior_states):
+        """
+        Copy of train_actor_critic but configured for evaluation (i.e. no gradient stepping, logs to eval group)
+        """
+        # Train actor
+        with FreezeParameters(self.model_params):
+            (
+                imag_beliefs,
+                imag_prior_states,
+                imag_prior_means,
+                imag_prior_std_devs,
+            ) = self.transition_model.imagine(
+                beliefs, posterior_states, self.actor_model, self.c.horizon
+            )
+        with FreezeParameters(self.model_params + list(self.value_model.parameters())):
+            reward_preds = bottle(self.reward_model, (imag_beliefs, imag_prior_states))
+            value_preds = bottle(self.value_model, (imag_beliefs, imag_prior_states))
+
+        # Action entropy regularization
+        action_dists = self.actor_model.get_action_dist(
+            imag_beliefs.flatten(0, 1),
+            imag_prior_states.flatten(0, 1),
+        )
+        action_entropy = action_dists.entropy().mean()
+
+        # Latent entropy regularization
+        latent_dists = Independent(Normal(imag_prior_means, imag_prior_std_devs), 1)
+        latent_entropy = latent_dists.entropy().mean()
+
+        # Disagreement bonus
+        if self.c.disag_model and self.c.disag_coef > 0:
+            with FreezeParameters(list(self.disag_model.parameters())):
+                ens_preds = self.disag_model(
+                    imag_beliefs.flatten(0, 1),
+                    imag_prior_states.flatten(0, 1),
+                    action_dists.rsample(),
+                )
+            disag = ens_preds.std(0).mean(-1).reshape(reward_preds.shape)
+            reward_preds = reward_preds + self.c.disag_coef * disag
+
+        # Generalized value estimation
+        discounts = self.c.gamma * torch.ones_like(reward_preds)
+        returns = lambda_return(
+            reward_preds[:-1],
+            value_preds[:-1],
+            discounts[:-1],
+            value_preds[-1],
+            self.c.gae_lambda,
+        )
+        actor_loss = (
+            -returns.mean()
+            - self.c.action_ent_coef * action_entropy
+            - self.c.latent_ent_coef * latent_entropy
+        )
+
+        # self.actor_optimizer.zero_grad()
+        # actor_loss.backward()
+        # nn.utils.clip_grad_norm_(self.actor_model.parameters(), self.c.grad_clip_norm)
+        # self.actor_optimizer.step()
+
+        # Train critic
+        imag_beliefs = imag_beliefs[:-1].detach()
+        imag_prior_states = imag_prior_states[:-1].detach()
+        returns = returns.detach()
+        value_dist = Normal(
+            bottle(self.value_model, (imag_beliefs, imag_prior_states)), 1
+        )
+        value_loss = -value_dist.log_prob(returns).mean()
+
+        # self.value_optimizer.zero_grad()
+        # value_loss.backward()
+        # nn.utils.clip_grad_norm_(self.value_model.parameters(), self.c.grad_clip_norm)
+        # self.value_optimizer.step()
+
+        # Logging
+        self.logger.record("eval/actor_loss", actor_loss.item())
+        self.logger.record("eval/value_loss", value_loss.item())
+        self.logger.record("eval/action_entropy", action_entropy.item())
+        self.logger.record("eval/latent_entropy", latent_entropy.item())
+        if self.c.disag_model and self.c.disag_coef > 0:
+            self.logger.record("eval/disagreement", disag.mean().item())
+
     def train_agent(self):
         for _ in range(self.c.train_steps):
             obs, actions, rewards, dones = self.buffer.sample(
@@ -399,6 +554,34 @@ class Dreamer:
             beliefs = beliefs.flatten(0, 1)
             posterior_states = posterior_states.flatten(0, 1)
             self.train_actor_critic(beliefs, posterior_states)
+
+    def train_offline(self):
+        if self.c.load_checkpoint:
+            self.load_checkpoint()
+
+        # Populate the buffer with the offline data
+        self.load_offline_tsd_dataset()
+
+        while self.step < self.c.num_steps:
+
+            # Train agent
+            if self.step % self.c.train_every == 0:
+                self.train_agent()
+
+            # Evaluate agent
+            if self.step % self.c.eval_every == 0:
+                self.eval_agent()
+
+            # Save checkpoint
+            if self.step % self.c.checkpoint_every == 0:
+                self.save_checkpoint()
+
+            # Log metrics
+            if self.step % self.c.log_every == 0:
+                self.logger.record("train/step", self.step)
+                self.logger.dump(step=self.step)
+
+            self.step += 1
 
     def train(self):
         if self.c.load_checkpoint:
@@ -487,6 +670,28 @@ class Dreamer:
             # video shape: (T, N, C, H, W) -> (N, T, C, H, W)
             video = Video(np.stack(frames).transpose(1, 0, 2, 3, 4), fps=30)
             self.logger.record("test/video", video, exclude="stdout")
+
+        # Get losses on the evaluation set
+        if self.c.train_offline:
+            for batch in self.eval_buffer.iterate(self.c.batch_size, self.c.chunk_size):
+                obs, actions, rewards, dones = tuple(batch)
+
+                obs = to_torch(bottle(preprocess, (obs,)))
+                actions = to_torch(actions)
+                rewards = to_torch(rewards)
+                nonterms = to_torch(1 - dones)
+
+                # Train dynamics model
+                beliefs, posterior_states = self.eval_train_dynamics(
+                    obs, actions, rewards, nonterms
+                )
+
+                # Train policy and value function
+                beliefs = beliefs.flatten(0, 1)
+                posterior_states = posterior_states.flatten(0, 1)
+                self.eval_train_actor_critic(beliefs, posterior_states)
+
+            
         self.toggle_train(True)
 
     def save_checkpoint(self, filepath=None):
@@ -602,3 +807,51 @@ class Dreamer:
         buffer["full"] = True
         for k, v in buffer.items():
             setattr(self.buffer, k, v)
+
+    def load_offline_tsd_dataset(self):
+        """
+        Extra function to load an offline dataset with our file format.
+        """
+        task_name = self.c.env_id.split("dmc-")[1]
+        paths = {
+            "training": os.path.join(self.c.offline_dir, f"mt30-{task_name}-training.pt"),
+            "validation": os.path.join(self.c.offline_dir, f"mt30-{task_name}-validation.pt")
+        }
+        save_buffers = {
+            "training": self.buffer,
+            "validation": self.eval_buffer
+        }
+
+        data_keys = ["observations", "actions", "rewards", "dones"]
+
+        # Load the tensor & add the dones
+        for dataset_type in paths.keys():
+            path = paths[dataset_type]
+            save_buffer = save_buffers[dataset_type]
+            tensordict = torch.load(path, weights_only=False)
+            dones_tensordict = torch.zeros_like(tensordict["reward"])
+            dones_tensordict[:, -1, :] = 1
+            tensordict["dones"] = dones_tensordict
+
+            # Map the keys that RePo expects, to the key names in our dataset
+            data = {}
+            data["observations"] = tensordict["obs"][:,:-1].cpu().detach().numpy().reshape(-1, tensordict["obs"].shape[-1])
+            data["actions"] = tensordict["action"][:,1:].cpu().detach().numpy().reshape(-1, tensordict["action"].shape[-1])
+            data["rewards"] = tensordict["reward"][:,1:].cpu().detach().numpy().reshape(-1, tensordict["reward"].shape[-1])
+            data["dones"] = tensordict["dones"][:,1:].cpu().detach().numpy().reshape(-1, tensordict["dones"].shape[-1])
+
+            # Truncate buffer & add dones at the last transition
+            # size = min(len(data["observations"]), self.c.offline_truncate_size)
+            # data = {k: v[:size] for k, v in data.items()}
+            # data["dones"][-1, :] = 1
+
+            buffer = {k: data[k] for k in data.keys()}
+
+            # Get the capacity
+            buffer["capacity"] = len(buffer["observations"])
+            buffer["pos"] = 0
+            buffer["full"] = True
+            for k, v in buffer.items():
+                setattr(save_buffer, k, v)
+
+        return
