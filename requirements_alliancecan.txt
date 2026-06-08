@@ -1,5 +1,6 @@
 absl_py==2.4.0+computecanada
 annotated_types==0.7.0+computecanada
+antlr4_python3_runtime==4.9.3+computecanada
 asttokens==3.0.1+computecanada
 attrs==26.1.0+computecanada
 beautifulsoup4==4.14.3+computecanada
@@ -28,7 +29,8 @@ grpcio==1.76.0+computecanada
 gym==0.23.0
 gym-notices==0.1.0
 gymnasium==1.3.0
-h5py==3.16.0+computecanada
+h5py==3.12.0+computecanada
+hydra_core==1.3.2+computecanada
 idna==3.18
 imageio==2.37.3+computecanada
 imageio_ffmpeg==0.6.0+computecanada
@@ -56,6 +58,7 @@ nest_asyncio==1.6.0+computecanada
 networkx==3.6.1+computecanada
 nose==1.3.7+computecanada
 numpy==2.4.2+computecanada
+omegaconf==2.3.0+computecanada
 opencv_contrib_python==4.13.0
 opencv_contrib_python_headless==4.13.0
 opencv_python==4.13.0
@@ -89,7 +92,7 @@ pytz==2025.2+computecanada
 pyvers==0.2.2+computecanada
 pyyaml==6.0.3+computecanada
 pyzmq==27.1.0+computecanada
--e git+ssh://git@github.com/AlexP210/repo.git@9b8dcb4d954cfde569401147633d71390aff0fac#egg=repo
+-e git+ssh://git@github.com/AlexP210/repo.git@a8fc8b5b99d1c2a4b423b55dc2a4f40d0982d665#egg=repo
 requests==2.34.2+computecanada
 scikit-video==1.1.11
 scipy==1.17.0+computecanada
@@ -111,6 +114,7 @@ tqdm==4.68.1
 traitlets==5.14.3+computecanada
 transforms3d==0.4.2
 trimesh==4.12.2
+-e git+ssh://git@github.com/AlexP210/tsd.git@684e555dae73918928b7dca636df4c8bcf9629cb#egg=tsd
 typing_extensions==4.15.0+computecanada
 typing_inspection==0.4.2+computecanada
 tzdata==2025.3+computecanada
