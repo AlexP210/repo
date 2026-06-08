@@ -102,6 +102,7 @@ def setup_logger(config):
 
     # Configure logger
     logdir = os.path.join(
+        config.out_folder,
         "logdir",
         config.algo,
         config.env_id,

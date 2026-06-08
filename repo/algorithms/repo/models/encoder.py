@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import hydra
+from hydra.utils import instantiate
+
 
 class SymbolicEncoder(nn.Module):
     def __init__(self, observation_size, embedding_size, activation_function="relu"):
@@ -46,6 +49,73 @@ def Encoder(symbolic, observation_size, embedding_size, activation_function="rel
         return SymbolicEncoder(observation_size, embedding_size, activation_function)
     else:
         return VisualEncoder(embedding_size, activation_function)
+
+class TSDAgentEncoder(nn.Module):
+
+    def __init__(self, tsd_configuration_path, repo_config):
+        super().__init__()
+        # Load the config and specialize it for this
+        # from omegaconf import OmegaConf
+        # import os
+        # from hydra import compose, initialize_config_dir
+        # from hydra.core.global_hydra import GlobalHydra
+        # from hydra.core.hydra_config import HydraConfig
+        # GlobalHydra.instance().clear()
+        # HydraConfig.instance().set_config(OmegaConf.create({
+        #     "hydra": {
+        #         "runtime": {
+        #             "cwd": os.path.dirname(__file__)
+        #         }
+        #     }
+        # }))
+        # with initialize_config_dir(config_dir=os.path.dirname(tsd_configuration_path)):
+        #     print(os.path.dirname(os.path.dirname(tsd_configuration_path)))
+        #     self.tsd_configuration = compose(config_name=os.path.basename(tsd_configuration_path).split(".")[0])
+
+        from omegaconf import OmegaConf
+        from hydra import compose, initialize_config_dir
+        from hydra.core.global_hydra import GlobalHydra
+        from hydra.utils import instantiate
+        from unittest.mock import patch
+        from pathlib import Path
+
+        config_path = Path(tsd_configuration_path)
+
+        GlobalHydra.instance().clear()
+        with initialize_config_dir(config_dir=str(config_path.parent)):
+            with patch("hydra.utils.get_original_cwd", return_value=str(Path(__file__).parent)):
+                cfg = compose(config_name=config_path.stem)
+                cfg.task.cfg.task_name = repo_config.env_id.split("dmc-")[1]
+                cfg.runner.cfg.use_wandb = False
+                cfg.runner.cfg.run_name = "DELETE"
+                cfg.agent.cfg.freeze = True
+                cfg.device = f"cuda:{repo_config.gpu_id}"
+                # cfg.device = f"cpu"
+                cfg.task.cfg.data_root="/home/alexpl/projects/def-rhinehar/alexpl/TDMPC2-Data/datasets"
+                cfg.tdmpc2_mt30.cfg.tdmpc2_cfg.checkpoint="/home/alexpl/projects/def-rhinehar/alexpl/TDMPC2-Data/checkpoints/mt30-317M.pt"
+                cfg.task.cfg.load_device=f"cuda:{repo_config.gpu_id}"
+                # cfg.task.cfg.load_device=f"cpu"
+                cfg.seed=1
+                self.tsd_config = cfg
+
+                # Now instantiate just the agent
+                self.tsd_agent = instantiate(cfg.agent)
+                self.tsd_agent.requires_grad_(False)
+
+
+        # self.tsd_configuration.task.cfg.task_name = repo_config.env_id.split("dmc-")[1]
+        # self.tsd_configuration.runner.cfg.use_wandb = False
+        # self.tsd_configuration.runner.cfg.run_name = "DELETE"
+        # self.tsd_configuration.agent.cfg.freeze = True
+        # self.tsd_configuration.device = f"cuda:{repo_config.gpu_id}"
+
+    def requires_grad_(self, requires_grad = True):
+        return super().requires_grad_(requires_grad and self.tsd_configuration.model.cfg.freeze)
+
+    def forward(self, observation):
+        og_device = observation.device
+        observation = observation.to(self.tsd_config.device)
+        return self.tsd_agent.encoder_model.encode(observation).to(og_device)
 
 
 class ConditionalSymbolicEncoder(SymbolicEncoder):

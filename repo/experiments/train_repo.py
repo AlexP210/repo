@@ -13,6 +13,11 @@ def get_config():
     config.seed = 0
     config.use_gpu = True
     config.gpu_id = 0
+    config.out_folder = "/home/alexpl/scratch/repo_training"
+
+    # Integration with TSD
+    config.use_tsd_encoder = True
+    config.tsd_configuration_path = "/home/alexpl/tsd-project/agents/tsd/tsd/configs/evaluate_teacher.yaml"
 
     # Dreamer
     config.pixel_obs = False
@@ -24,7 +29,7 @@ def get_config():
     config.eval_every = 5000
     config.checkpoint_every = 25000
     config.log_every = 500
-    config.embedding_size = 1024
+    config.embedding_size = 1376
     config.hidden_size = 512
     config.belief_size = 445
     config.state_size = 67
@@ -45,7 +50,7 @@ def get_config():
     config.grad_clip_norm = 100.0
     config.load_checkpoint = False
     config.load_offline = False
-    config.offline_dir = "/data/AlexPleava/TDMPC2/datasets/mt30"
+    config.offline_dir = "/home/alexpl/projects/def-rhinehar/alexpl/TDMPC2-Data/datasets"
     config.offline_truncate_size = 1000000
     config.save_buffer = False
     # Our offline training additions

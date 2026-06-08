@@ -22,7 +22,7 @@ from repo.common.utils import (
 
 from .models.actor_critic import ActorModel, ValueModel
 from .models.decoder import ObservationModel, RewardModel
-from .models.encoder import Encoder
+from .models.encoder import Encoder, TSDAgentEncoder
 from .models.rssm import TransitionModel
 from .models.utils import bottle, EnsembleDynamicsModel, InverseDynamicsModel
 
@@ -61,12 +61,18 @@ class Dreamer:
         action_size = np.prod(env.action_space.shape).item()
 
         # RSSM
-        self.encoder = Encoder(
-            not config.pixel_obs,
-            obs_size,
-            config.embedding_size,
-            config.cnn_activation_function,
-        ).to(self.device)
+        if config.use_tsd_encoder:
+            self.encoder = TSDAgentEncoder(
+                tsd_configuration_path=config.tsd_configuration_path,
+                repo_config=config
+            )
+        else:
+            self.encoder = Encoder(
+                not config.pixel_obs,
+                obs_size,
+                config.embedding_size,
+                config.cnn_activation_function,
+            ).to(self.device)
 
         self.transition_model = TransitionModel(
             config.belief_size,
@@ -566,7 +572,11 @@ class Dreamer:
 
             # Train agent
             if self.step % self.c.train_every == 0:
+                
+                before = {k: v.clone() for k, v in self.encoder.named_parameters()}
                 self.train_agent()
+                changed = any(not torch.equal(before[k], v) for k, v in self.encoder.named_parameters())
+                print(f"Encoder weights changed: {changed}")
 
             # Evaluate agent
             if self.step % self.c.eval_every == 0:
@@ -696,7 +706,11 @@ class Dreamer:
 
     def save_checkpoint(self, filepath=None):
         # Save checkpoint
+
+        # Temporarily move tsd_agent to CPU to avoid OOM during state_dict
+        self.encoder.tsd_agent.cpu()
         params = self.get_param_dict()
+        self.encoder.tsd_agent.to(self.device)
         if filepath is None:
             torch.save(params, os.path.join(self.logger.dir, f"models.pt"))
         else:
