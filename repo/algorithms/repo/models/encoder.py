@@ -99,15 +99,8 @@ class TSDAgentEncoder(nn.Module):
                 self.tsd_config = cfg
 
                 # Now instantiate just the agent
-                self.tsd_agent = instantiate(cfg.agent)
-                self.tsd_agent.requires_grad_(False)
-
-
-        # self.tsd_configuration.task.cfg.task_name = repo_config.env_id.split("dmc-")[1]
-        # self.tsd_configuration.runner.cfg.use_wandb = False
-        # self.tsd_configuration.runner.cfg.run_name = "DELETE"
-        # self.tsd_configuration.agent.cfg.freeze = True
-        # self.tsd_configuration.device = f"cuda:{repo_config.gpu_id}"
+                self.tsd_encoder = instantiate(cfg.encoder)
+                self.tsd_encoder.requires_grad_(False)
 
     def requires_grad_(self, requires_grad = True):
         return super().requires_grad_(requires_grad and self.tsd_configuration.model.cfg.freeze)
@@ -115,7 +108,7 @@ class TSDAgentEncoder(nn.Module):
     def forward(self, observation):
         og_device = observation.device
         observation = observation.to(self.tsd_config.device)
-        return self.tsd_agent.encoder_model.encode(observation).to(og_device)
+        return self.tsd_encoder.encode(observation).to(og_device)
 
 
 class ConditionalSymbolicEncoder(SymbolicEncoder):

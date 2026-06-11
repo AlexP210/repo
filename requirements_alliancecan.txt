@@ -24,7 +24,7 @@ fonttools==4.61.1+computecanada
 fsspec==2026.4.0+computecanada
 gitdb==4.0.12+computecanada
 GitPython==3.1.50
-glfw @ file:///tmp/ebuser/avx512/GLFW/3.4/GCCcore-12.3-gentoo/glfw/glfw-2.8.0
+# glfw @ file:///tmp/ebuser/avx512/GLFW/3.4/GCCcore-12.3-gentoo/glfw/glfw-2.8.0
 grpcio==1.76.0+computecanada
 gym==0.23.0
 gym-notices==0.1.0
@@ -52,7 +52,7 @@ matplotlib==3.10.8+computecanada
 matplotlib_inline==0.2.1+computecanada
 moviepy==2.2.1+computecanada
 mpmath==1.3.0+computecanada
-mujoco @ file:///tmp/ebuser/avx512/MuJoCo/3.3.0/GCCcore-12.3-gentoo/mujoco/mujoco-3.3.0
+# mujoco @ file:///tmp/ebuser/avx512/MuJoCo/3.3.0/GCCcore-12.3-gentoo/mujoco/mujoco-3.3.0
 mypy_extensions==1.1.0+computecanada
 nest_asyncio==1.6.0+computecanada
 networkx==3.6.1+computecanada
@@ -92,7 +92,7 @@ pytz==2025.2+computecanada
 pyvers==0.2.2+computecanada
 pyyaml==6.0.3+computecanada
 pyzmq==27.1.0+computecanada
--e git+ssh://git@github.com/AlexP210/repo.git@a8fc8b5b99d1c2a4b423b55dc2a4f40d0982d665#egg=repo
+# -e git+ssh://git@github.com/AlexP210/repo.git@a8fc8b5b99d1c2a4b423b55dc2a4f40d0982d665#egg=repo
 requests==2.34.2+computecanada
 scikit-video==1.1.11
 scipy==1.17.0+computecanada
@@ -102,19 +102,19 @@ smmap==5.0.3+computecanada
 soupsieve==2.8.4
 stack_data==0.6.3+computecanada
 sympy==1.14.0+computecanada
--e git+ssh://git@github.com/AlexP210/tdmpc2.git@9845203de3d753a1906853de41e2ad030048f5a2#egg=tdmpc2
+# -e git+ssh://git@github.com/AlexP210/tdmpc2.git@9845203de3d753a1906853de41e2ad030048f5a2#egg=tdmpc2
 tensorboard==2.20.0+computecanada
 tensorboard_data_server==0.7.2+computecanada
 tensordict==0.11.0+computecanada
 torch==2.10.0+computecanada
-torchaudio==2.11.0+computecanada
-torchvision==0.26.0+computecanada
+torchaudio==2.10.0+computecanada
+torchvision==0.25.0+computecanada
 tornado==6.5.4+computecanada
 tqdm==4.68.1
 traitlets==5.14.3+computecanada
 transforms3d==0.4.2
 trimesh==4.12.2
--e git+ssh://git@github.com/AlexP210/tsd.git@684e555dae73918928b7dca636df4c8bcf9629cb#egg=tsd
+# -e git+ssh://git@github.com/AlexP210/tsd.git@684e555dae73918928b7dca636df4c8bcf9629cb#egg=tsd
 typing_extensions==4.15.0+computecanada
 typing_inspection==0.4.2+computecanada
 tzdata==2025.3+computecanada

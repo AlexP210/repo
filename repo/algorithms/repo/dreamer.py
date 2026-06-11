@@ -572,11 +572,7 @@ class Dreamer:
 
             # Train agent
             if self.step % self.c.train_every == 0:
-                
-                before = {k: v.clone() for k, v in self.encoder.named_parameters()}
                 self.train_agent()
-                changed = any(not torch.equal(before[k], v) for k, v in self.encoder.named_parameters())
-                print(f"Encoder weights changed: {changed}")
 
             # Evaluate agent
             if self.step % self.c.eval_every == 0:
@@ -708,9 +704,7 @@ class Dreamer:
         # Save checkpoint
 
         # Temporarily move tsd_agent to CPU to avoid OOM during state_dict
-        self.encoder.tsd_agent.cpu()
         params = self.get_param_dict()
-        self.encoder.tsd_agent.to(self.device)
         if filepath is None:
             torch.save(params, os.path.join(self.logger.dir, f"models.pt"))
         else:
@@ -770,7 +764,13 @@ class Dreamer:
 
     def load_param_dict(self, params):
         self.step = params["step"]
-        self.encoder.load_state_dict(params["encoder"])
+        if not self.c.use_tsd_encoder:
+            self.encoder.load_state_dict(params["encoder"])
+        else:
+            self.encoder = TSDAgentEncoder(
+                tsd_configuration_path=self.c.tsd_configuration_path,
+                repo_config=self.c
+            )
         self.transition_model.load_state_dict(params["transition_model"])
         self.obs_model.load_state_dict(params["obs_model"])
         self.reward_model.load_state_dict(params["reward_model"])
