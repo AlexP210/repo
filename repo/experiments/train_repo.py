@@ -1,4 +1,5 @@
 from copy import deepcopy
+import os
 
 from setup import AttrDict, parse_arguments, set_seed, set_device, setup_logger
 from repo.algorithms.repo import Dreamer, MultitaskDreamer, RePo, MultitaskRePo, TIA
@@ -13,11 +14,15 @@ def get_config():
     config.seed = 0
     config.use_gpu = True
     config.gpu_id = 0
-    config.out_folder = "/home/alexpl/scratch/repo_training"
 
-    # Integration with TSD
-    config.use_tsd_encoder = True
-    config.tsd_configuration_path = "/home/alexpl/tsd-project/agents/tsd/tsd/configs/evaluate_teacher.yaml"
+    # We set these based on the machine the code is running on
+    config.out_folder = ""
+    config.offline_dir = ""
+    config.checkpoint_dir = ""
+
+    # We set these based on whether we want to replace the usual RePo encoder with some pretrained model
+    config.use_tsd_encoder = False
+    config.tsd_encoder_configuration_name = "frozen_tdmpc2_mt30_317M"
 
     # Dreamer
     config.pixel_obs = False
@@ -50,11 +55,10 @@ def get_config():
     config.grad_clip_norm = 100.0
     config.load_checkpoint = False
     config.load_offline = False
-    config.offline_dir = "/home/alexpl/projects/def-rhinehar/alexpl/TDMPC2-Data/datasets"
     config.offline_truncate_size = 1000000
     config.save_buffer = False
     # Our offline training additions
-    config.train_offline = True
+    config.train_offline = False
 
     # RePo
     config.target_kl = 3.0

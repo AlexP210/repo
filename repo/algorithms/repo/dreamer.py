@@ -63,7 +63,7 @@ class Dreamer:
         # RSSM
         if config.use_tsd_encoder:
             self.encoder = TSDAgentEncoder(
-                tsd_configuration_path=config.tsd_configuration_path,
+                tsd_encoder_configuration_name=config.tsd_encoder_configuration_name,
                 repo_config=config
             )
         else:
@@ -826,11 +826,16 @@ class Dreamer:
         """
         Extra function to load an offline dataset with our file format.
         """
-        task_name = self.c.env_id.split("dmc-")[1]
-        paths = {
-            "training": os.path.join(self.c.offline_dir, f"mt30-{task_name}-training.pt"),
-            "validation": os.path.join(self.c.offline_dir, f"mt30-{task_name}-validation.pt")
-        }
+        task_name = self.c.env_id.split("-", 1)[1]
+        if not self.c.pixel_obs:
+            paths = {
+                "training": os.path.join(self.c.offline_dir, "tdmpc2", f"mt30-{task_name}-training.pt"),
+                "validation": os.path.join(self.c.offline_dir, "tdmpc2", f"mt30-{task_name}-validation.pt")
+            }
+        else:
+            raise ValueError(
+                f"Requested offline training with pixel obs for {task_name}, but no offline dataset available."
+            )
         save_buffers = {
             "training": self.buffer,
             "validation": self.eval_buffer
